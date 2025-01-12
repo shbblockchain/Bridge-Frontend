@@ -16,7 +16,8 @@ import { formatUnits } from "viem";
 import { ArrowDownIcon, Loader2Icon } from "lucide-react";
 import { useDebounce } from "react-use";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
-import { fetchInfo } from "./lib/fetch";
+import { ethers } from "ethers";
+
 import { JSX } from "react/jsx-runtime";
 
 export default function App() {
@@ -57,7 +58,7 @@ export default function App() {
       social: [
         {
           name: 'Discord',
-          href: 'https://discord.com/invite/43XSFu5mH7',
+          href: 'https://discord.gg/q8Kf8z7ttF',
           icon: (props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) => (
           <svg fill="currentColor" viewBox="0 0 24 20" {...props}>
             <path d="M20.348 1.5554C23.0585 5.56881 24.3971 10.0958 23.8967 15.3075C23.8946 15.3295 23.8832 15.3498 23.8652 15.3631C21.8126 16.8809 19.8239 17.8021 17.8631 18.413C17.8478 18.4177 17.8315 18.4174 17.8164 18.4123C17.8012 18.4071 17.7881 18.3973 17.7788 18.3843C17.3258 17.7495 16.9142 17.0803 16.5536 16.3776C16.5329 16.3362 16.5518 16.2863 16.5944 16.27C17.2481 16.022 17.8697 15.7247 18.4676 15.3727C18.5147 15.3449 18.5177 15.2769 18.4742 15.2443C18.3473 15.1495 18.2216 15.0498 18.1013 14.9501C18.0788 14.9316 18.0485 14.928 18.023 14.9404C14.1413 16.7456 9.88909 16.7456 5.9615 14.9404C5.936 14.9289 5.9057 14.9328 5.8838 14.951C5.7638 15.0507 5.6378 15.1495 5.5121 15.2443C5.4686 15.2769 5.4722 15.3449 5.5196 15.3727C6.1175 15.718 6.7391 16.022 7.3919 16.2712C7.4342 16.2876 7.4543 16.3362 7.4333 16.3776C7.0805 17.0812 6.6689 17.7504 6.2075 18.3852C6.1874 18.4109 6.1544 18.4227 6.1232 18.413C4.1717 17.8021 2.18301 16.8809 0.130411 15.3631C0.113311 15.3498 0.101011 15.3286 0.0992107 15.3066C-0.318989 10.7986 0.53331 6.23408 3.6446 1.55449C3.6521 1.5421 3.6635 1.53244 3.6767 1.5267C5.2076 0.819122 6.8477 0.298563 8.5619 0.00127361C8.5931 -0.00356037 8.6243 0.0109416 8.6405 0.0387369C8.8523 0.416392 9.0944 0.900696 9.2582 1.29648C11.0651 1.01852 12.9002 1.01852 14.7449 1.29648C14.9087 0.909155 15.1424 0.416392 15.3533 0.0387369C15.3608 0.024948 15.3724 0.013901 15.3866 0.0071731C15.4007 0.000445245 15.4165 -0.00161951 15.4319 0.00127361C17.147 0.29947 18.7871 0.820029 20.3168 1.5267C20.3303 1.53244 20.3414 1.5421 20.348 1.5554V1.5554ZM10.1768 10.1266C10.1957 8.79398 9.2309 7.69123 8.0198 7.69123C6.8186 7.69123 5.8631 8.78431 5.8631 10.1266C5.8631 11.4687 6.8375 12.5618 8.0198 12.5618C9.2213 12.5618 10.1768 11.4687 10.1768 10.1266V10.1266ZM18.1514 10.1266C18.1703 8.79398 17.2055 7.69123 15.9947 7.69123C14.7932 7.69123 13.8377 8.78431 13.8377 10.1266C13.8377 11.4687 14.8121 12.5618 15.9947 12.5618C17.2055 12.5618 18.1514 11.4687 18.1514 10.1266V10.1266Z"/>
@@ -66,7 +67,7 @@ export default function App() {
         },
         {
           name: 'Twitter',
-          href: 'https://twitter.com/nexis_network',
+          href: '#',
           icon: (props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) => (
             <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
               <path
@@ -77,7 +78,7 @@ export default function App() {
         },
         {
           name: 'GitHub',
-          href: 'https://github.com/nexis-network',
+          href: 'https://github.com/shbblockchain/Bridge-Frontend',
           icon: (props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) => (
             <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
               <path
@@ -102,11 +103,15 @@ export default function App() {
 
   const fetchCurrentTokenBalance = async () => {
     if (token && fromChain && address) {
-      fetchTokenBalance(token.contract, address, fromChain).then((balance) => {
-        setTokenBalance(formatUnits(balance, token.decimals));
-      });
+        try {
+            const balance = await fetchTokenBalance(token.contract, address, fromChain);
+            setTokenBalance(formatUnits(balance, 18)); // using 18 decimals
+        } catch (error) {
+            console.error("Error fetching token balance:", error);
+        }
     }
-  };
+};
+
 
   const fee = useMemo(() => {
     if (!toChain || !token) return 0;
@@ -128,10 +133,13 @@ export default function App() {
 
   useEffect(() => {
     if (amount && token) {
-      const value = Number(amount) - fee;
-      setReceviedAmount(value > 0 ? value : 0);
-    } else setReceviedAmount("");
-  }, [token, amount, fee]);
+      const fee = Number(amount) * 0.005; // 0.5% fee
+      const received = Number(amount) - fee;
+      setReceviedAmount(received > 0 ? received.toFixed(3) : "0");
+    } else {
+      setReceviedAmount("");
+    }
+  }, [token, amount]);  
 
   useEffect(() => {
     if (toChain) {
@@ -190,14 +198,6 @@ export default function App() {
     }
   }, [chain]);
 
-  useEffect(() => {
-    fetchInfo().then((data) =>
-      useStore.setState({
-        pricesInUSD: data.prices,
-        maxGasLimit: data.maxGasLimit,
-      })
-    );
-  }, []);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -267,28 +267,15 @@ export default function App() {
                   invalidMessage="Network fee is higher than the received amount"
                 />
               </div>
-              {bridgeBalance && +bridgeBalance < +amount && (
-                <p className="text-sm font-bold text-red-500">
-                  Sorry, there is not enough balance in the bridge
-                </p>
-              )}
               {isConnected ? (
                 <Button
                   className="w-full h-auto p-4 mt-8 font-bold"
                   onClick={() => submit()}
-                  disabled={
-                    loading ||
-                    +tokenBalance < +amount ||
-                    (amount && fee ? +amount < +fee : false) ||
-                    (bridgeBalance !== undefined
-                      ? +bridgeBalance < +amount
-                      : false)
-                  }
                 >
                   {loading && (
                     <Loader2Icon className="mr-2 animate-spin" size={20} />
                   )}
-                  Confirm swap
+                  Confirm Bridge
                 </Button>
               ) : (
                 <Button
@@ -316,7 +303,7 @@ export default function App() {
           </div>
           <div className="mt-5 items-center">
         <p className="text-xs text-gray-400">
-              &copy; 2023 Nexis Network. All rights reserved.
+              &copy; 2025 Sahabat Blockchain. All rights reserved.
         </p>
         </div>
         </div>

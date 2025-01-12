@@ -16,7 +16,8 @@ import {
 } from "viem";
 import useStore from "@/store";
 import config from "@/config";
-import { bridgeAbi } from "@/contracts/bridge";
+import { bridgeAmoy } from "@/contracts/bridgeamoy";
+import { bridgeHaust } from "@/contracts/bridgehaust";
 import { Token } from "@/@types/token";
 import { toast } from "react-toastify";
 
@@ -47,7 +48,7 @@ const useWeb3Functions = () => {
   const calculateGasFee = async (chain: Chain) => {
     const client = createPublicClient({ chain, transport: http() });
     const gasPrice =
-      chain.nativeCurrency.symbol === "nexis"
+      chain.nativeCurrency.symbol === "haust"
         ? parseGwei("100")
         : await client.getGasPrice();
     const gasFee = Number(gasPrice * BigInt(maxGasLimit)) / 1e18;
@@ -56,7 +57,9 @@ const useWeb3Functions = () => {
 
   const getBridgeContract = () => {
     if (!chain || !config.bridge[chain.id]) return null;
-
+  
+    const bridgeAbi = chain.id === config.baseChainId ? bridgeHaust : bridgeAmoy;
+  
     return getContract({
       abi: bridgeAbi,
       address: config.bridge[chain.id],
@@ -85,7 +88,7 @@ const useWeb3Functions = () => {
         [spender, 2n ** 256n - 1n],
         {
           gasPrice:
-            chain.nativeCurrency.symbol === "nexis"
+            chain.nativeCurrency.symbol === "haust"
               ? parseGwei("100")
               : undefined,
         }
@@ -103,47 +106,46 @@ const useWeb3Functions = () => {
   ) => {
     const bridgeContract = getBridgeContract();
     if (!chain || !bridgeContract || !walletClient || !amount) return;
-
-    const value = parseUnits(`${amount}`, token.decimals);
-
+  
+    const value = parseUnits(`${amount}`, 18);
+  
     try {
       if (token.contract !== zeroAddress) {
         await checkAllowance(token.contract, bridgeContract.address, value);
       }
-
-      const params = [
-        walletClient.account.address,
-        token.contract,
-        value,
-        BigInt(targetChain.id),
-      ] as const;
-
-      const { request } = await bridgeContract.simulate.deposit(params, {
-        value: token.contract !== zeroAddress ? 0n : value,
+  
+      const params = [value] as const;
+  
+      const requestOptions: any = {
         account: walletClient.account,
-        gasPrice:
-          chain.nativeCurrency.symbol === "nexis" ? parseGwei("100") : undefined,
-      });
+        ...(token.contract === zeroAddress ? { value } : {}), 
+      };
 
+      if (chain.nativeCurrency.symbol === "haust") {
+        requestOptions.gasPrice = parseGwei("100");
+      }
+  
+      const { request } = await bridgeContract.simulate.bridge(params, requestOptions);
+  
       const hash = await walletClient.writeContract(request);
-
+  
       toast.info("Waiting for confirmation");
-
+  
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
+  
       toast.success("Successfully deposited to bridge");
-
+  
       return receipt;
     } catch (e: any) {
       toast.error(
         e?.walk?.()?.shortMessage ||
-          e?.walk?.()?.message ||
-          e?.message ||
-          "Something went wrong"
+        e?.walk?.()?.message ||
+        e?.message ||
+        "Something went wrong"
       );
     }
   };
-
+  
   return { fetchTokenBalance, calculateGasFee, swap };
 };
 

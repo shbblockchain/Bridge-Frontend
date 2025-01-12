@@ -27,25 +27,12 @@ export default function Header() {
   return (
     <div className="py-6">
       <div className="container flex items-center justify-between">
-        <a href="/">
-          <img src="/logo.svg" alt="logo" className="h-6" />
-        </a>
+      <a href="/">
+  <img src="/logo.png" alt="logo" className="h-[100px] w-[140px]" />
+</a>
 
         <div className="items-center hidden gap-3 lg:flex">
-          {links.map((link, key) => (
-            <a
-              key={key}
-              href={link.link}
-              className={cn(
-                "text-sm font-bold p-2 rounded-xl hover:bg-white transition-all duration-300",
-                {
-                  "bg-white": link.active,
-                }
-              )}
-            >
-              {link.name}
-            </a>
-          ))}
+
         </div>
 
         <div className="flex gap-4">
